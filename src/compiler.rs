@@ -25,15 +25,29 @@ pub fn compile_to_assembly(abstract_syntax_tree: &Vec<Statement>) -> String {
                     }
                 }
             },
-            Statement::VariableDefinition { identifier, value } => {
+            Statement::VariableDefinition { identifier, expression } => {
                 if variables.contains_key(identifier) {
                     panic!("Variable \"{}\" already exists!", identifier);
                 }
 
-                variables.insert(identifier.clone(), stack_size);
-                let to_append = format!("mov rax, {}\n push rax\n", value);
-                assembly.push_str(&to_append);
-                stack_size += 1;
+                match expression {
+                    Expression::IntLiteral(value) => {
+                        variables.insert(identifier.clone(), stack_size);
+                        let to_append = format!("mov rax, {}\n push rax\n", value);
+                        assembly.push_str(&to_append);
+                        stack_size += 1;
+                    },
+                    Expression::Identifier(other) => {
+                        if !variables.contains_key(other) {
+                            panic!("Undeclared identifier: \"{}\"", other);
+                        }
+                        variables.insert(identifier.clone(), stack_size);
+                        let stack_location = variables.get(other).unwrap();
+                        let to_append = format!("push QWORD [rsp + {}]\n", (stack_size - stack_location - 1) * 8);
+                        assembly.push_str(&to_append);
+                        stack_size += 1;
+                    }
+                }
             }
         }
     }
